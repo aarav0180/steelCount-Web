@@ -257,7 +257,7 @@ export default function ModelSelectionPage() {
           let defaultModelId = ""
           if (availableModels.length > 0) {
             // Try to find a model that matches the classification results
-            const classificationClasses = results.map((r) => r.predicted_class_en).filter(Boolean)
+            const classificationClasses = results.map((r: any) => r.predicted_class_en).filter(Boolean)
 
             if (classificationClasses.length > 0) {
               // Find the most common predicted class
