@@ -1,4 +1,108 @@
+
 "use client"
+// --- Counting logic moved from counting/page.tsx ---
+// These functions and state are copied from counting/page.tsx for direct results redirection.
+const getModelDisplayName = (modelId: string, language: string) => {
+  const modelData = HARDCODED_MODELS[modelId as keyof typeof HARDCODED_MODELS]
+  if (modelData) {
+    return language === "ja" ? modelData.ja : modelData.en
+  }
+  return modelId // Fallback to original ID
+}
+
+// This function performs the counting and stores results, then redirects to /results
+async function handleCountingAndRedirect({
+  steelFiles,
+  selectedModel,
+  t,
+  language,
+  router,
+  showToast,
+  classificationResults,
+}: {
+  steelFiles: any[]
+  selectedModel: string
+  t: any
+  language: string
+  router: any
+  showToast: any
+  classificationResults: any[]
+}) {
+  if (steelFiles.length === 0) {
+    showToast({
+      title: t("toast.no.images"),
+      description: t("toast.no.images.desc"),
+      variant: "error",
+    })
+    return
+  }
+
+  try {
+    // Extract image_id from steel files
+    const steelImageIds = steelFiles.map((file) => file.image_id || file.file_id).filter(Boolean)
+
+    if (steelImageIds.length === 0) {
+      throw new Error("No valid image IDs found in steel files")
+    }
+
+    // Call the steel count detection API via our proxy
+    const response = await fetch("/api/steel/detect", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image_ids: steelImageIds,
+        model_choice: selectedModel, // Use original English model ID for API
+        brightness: 0,
+        contrast: 0,
+        gamma: 1.0,
+      }),
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      localStorage.setItem("countingResults", JSON.stringify(data))
+
+      showToast({
+        title: t("toast.counting.complete"),
+        description: t("toast.counting.complete.desc"),
+        variant: "success",
+      })
+
+      setTimeout(() => router.push("/results"), 1000)
+    } else {
+      const errorData = await response.json()
+      throw new Error(errorData.details || "Detection failed")
+    }
+  } catch (error: any) {
+    // Fallback to mock results for demonstration
+    const mockResults = {
+      success: true,
+      total_images_processed: steelFiles.length,
+      total_count: Math.floor(Math.random() * 50) + 10,
+      processing_time: Math.random() * 3 + 1,
+      model_used: selectedModel,
+      results: steelFiles.map((file: any, index: number) => ({
+        image_id: file.image_id || file.file_id,
+        filename: file.filename || `image_${index + 1}.jpg`,
+        count: Math.floor(Math.random() * 15) + 2,
+        annotated_image_base64: "/placeholder.svg?height=400&width=600",
+      })),
+    }
+
+    localStorage.setItem("countingResults", JSON.stringify(mockResults))
+
+    showToast({
+      title: t("toast.counting.complete.demo"),
+      description: t("toast.counting.demo.desc"),
+      variant: "error",
+    })
+
+    setTimeout(() => router.push("/results"), 1000)
+  }
+}
+// --- End of counting logic from counting/page.tsx ---
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -240,7 +344,9 @@ export default function ModelSelectionPage() {
     initializePage()
   }, [router, showToast, t, language])
 
-  const handleModelSelection = () => {
+  // --- Model selection now triggers counting and redirects to results ---
+  const [isCounting, setIsCounting] = useState(false)
+  const handleModelSelection = async () => {
     if (!selectedModel) {
       showToast({
         title: t("toast.no.model.selected"),
@@ -249,6 +355,8 @@ export default function ModelSelectionPage() {
       })
       return
     }
+
+    setIsCounting(true)
 
     // Store the original model ID (English) for API calls
     localStorage.setItem("selectedCountingModel", selectedModel)
@@ -260,9 +368,21 @@ export default function ModelSelectionPage() {
       variant: "success",
     })
 
-    setTimeout(() => {
-      router.push("/counting")
-    }, 1000)
+    // Get steelFiles and classificationResults from localStorage
+    const steelFiles = JSON.parse(localStorage.getItem("steelFiles") || "[]")
+    const classificationResults = JSON.parse(localStorage.getItem("classificationResults") || "[]")
+
+    await handleCountingAndRedirect({
+      steelFiles,
+      selectedModel,
+      t,
+      language,
+      router,
+      showToast,
+      classificationResults,
+    })
+
+    setIsCounting(false)
   }
 
   const getMostCommonClass = () => {
@@ -423,12 +543,24 @@ export default function ModelSelectionPage() {
 
             <Button
               onClick={handleModelSelection}
-              disabled={!selectedModel || isLoadingModels}
+              disabled={!selectedModel || isLoadingModels || isCounting}
               size="lg"
-              className="px-8 bg-black hover:bg-gray-800 text-white"
+              className="px-8 bg-black hover:bg-gray-800 text-white flex items-center justify-center"
             >
-              {t("model.proceed.counting")}
-              <ArrowRight className="ml-2 h-4 w-4" />
+              {isCounting ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                  </svg>
+                  {t("model.counting.loading")}
+                </>
+              ) : (
+                <>
+                  {t("model.proceed.counting")}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
             </Button>
           </div>
         </div>

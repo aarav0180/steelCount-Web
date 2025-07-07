@@ -310,9 +310,21 @@ export default function ResultsPage() {
 
         {/* Back Button */}
         <div className="mt-8">
+          {/*
+          // Old: Go back to counting page
           <Button
             variant="outline"
             onClick={() => router.push("/counting")}
+            className="px-6 border-gray-300 hover:bg-gray-100"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {t("results.back.counting")}
+          </Button>
+          */}
+          {/* New: Go back to model selection page */}
+          <Button
+            variant="outline"
+            onClick={() => router.push("/model-selection")}
             className="px-6 border-gray-300 hover:bg-gray-100"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />

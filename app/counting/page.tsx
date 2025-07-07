@@ -118,10 +118,7 @@ export default function CountingPage() {
 
         showToast({
           title: t("toast.counting.complete"),
-          description: t("toast.counting.complete.desc", {
-            count: data.total_count || "objects",
-            images: data.total_images_processed || steelImageIds.length,
-          }),
+          description: t("toast.counting.complete.desc"),
           variant: "success",
         })
 
@@ -153,7 +150,7 @@ export default function CountingPage() {
 
       showToast({
         title: t("toast.counting.complete.demo"),
-        description: t("toast.counting.demo.desc", { error: error.message }),
+        description: t("toast.counting.demo.desc"),
         variant: "error",
       })
 
